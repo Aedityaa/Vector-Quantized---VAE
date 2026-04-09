@@ -88,3 +88,5 @@ README.md            # Project documentation
 - 🔲 **Interface not included**. A basic **Streamlit** or **Flutter** frontend could enable:
   - Uploading degraded images
   - Visualizing restorations in real time
+ 
+Project - Aditya Parate
