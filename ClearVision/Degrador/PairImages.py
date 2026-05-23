@@ -1,34 +1,41 @@
 import os
 from PIL import Image
 from torch.utils.data import Dataset
-import torchvision.transforms as transforms
+from torchvision import transforms
+
+_IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp")
+
 
 class PairImages(Dataset):
-    def __init__(self, clean_path, corrupted_path, transform=None):
+    """Paired (corrupted, clean) tensors aligned by filename."""
+
+    def __init__(self, clean_path, corrupted_path, transform=None, image_size=(128, 128)):
         self.clean_path = clean_path
         self.corrupted_path = corrupted_path
-        self.clean_images = sorted([os.path.join(clean_path, f) for f in os.listdir(clean_path) if f.endswith('.jpg') or f.endswith('.png')])
-        self.degraded_images = sorted([os.path.join(corrupted_path, f) for f in os.listdir(corrupted_path) if f.endswith('.jpg') or f.endswith('.png')])
-        self.transform = transform
+        self.transform = transform or transforms.Compose([
+            transforms.Resize(image_size),
+            transforms.ToTensor(),
+        ])
+
+        clean_names = {
+            f for f in os.listdir(clean_path) if f.lower().endswith(_IMAGE_EXT)
+        }
+        corrupt_names = {
+            f for f in os.listdir(corrupted_path) if f.lower().endswith(_IMAGE_EXT)
+        }
+        self.filenames = sorted(clean_names & corrupt_names)
+        if not self.filenames:
+            raise ValueError(
+                f"No matching image pairs in {clean_path} and {corrupted_path}"
+            )
 
     def __len__(self):
-        return len(self.degraded_images)
+        return len(self.filenames)
 
     def __getitem__(self, idx):
-        clean_img_path = self.clean_images[idx]
-        degraded_img_path = self.degraded_images[idx]
-
-        try:
-            # Corrected conversion mode from "IMG" to "RGB"
-            clean_image = Image.open(clean_img_path).convert("RGB")
-            degraded_image = Image.open(degraded_img_path).convert("RGB")
-        except Exception as e:
-            print(f"Error loading image at index {idx}: {e}")
-            # Return None or handle the error appropriately
-            return None, None
-
-        if self.transform:
-            clean = self.transform(clean_image)
-            degraded = self.transform(degraded_image)
-
+        name = self.filenames[idx]
+        clean_image = Image.open(os.path.join(self.clean_path, name)).convert("RGB")
+        degraded_image = Image.open(os.path.join(self.corrupted_path, name)).convert("RGB")
+        clean = self.transform(clean_image)
+        degraded = self.transform(degraded_image)
         return degraded, clean
