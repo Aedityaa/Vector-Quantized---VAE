@@ -77,11 +77,11 @@ This creates blind restoration pairs — the model never sees a fixed noise type
 
 Trained for 100 epochs on a T4 GPU (Google Colab) with batch size 16, image size 128×128.
 
-| Metric | Achieved | Target |
-|---|---|---|
-| PSNR (dB) | 27.63 | 31.59 |
-| SSIM | 0.877 | 0.8415 ✅ |
-| LPIPS | 0.159 | 0.113 |
+| Metric | Achieved |
+|---|---|
+| PSNR (dB) | 27.63 |
+| SSIM | 0.877 |
+| LPIPS | 0.159 | 
 
 SSIM target was exceeded comfortably. PSNR and LPIPS gaps are primarily attributed to early-stage codebook collapse (perplexity < 10 for the first ~20 epochs due to high EMA decay γ=0.99), which limited how much information the VQ bottleneck could encode during the critical early training phase.
 
