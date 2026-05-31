@@ -184,4 +184,4 @@ pathlib.PosixPath = pathlib.WindowsPath
 
 ---
 
-**Author:** Aditya Parate | ECE, IIT Guwahati | Summer Projects 2025, Coding Club IITG
+**Author:** Aditya Parate | ECE, IIT Guwahati 
