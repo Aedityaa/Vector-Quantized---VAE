@@ -1,7 +1,6 @@
 # ClearVision — VQ-VAE Image Restoration
 
-> A blind image restoration system built from scratch using a Vector-Quantized Variational Autoencoder with a U-Net decoder. Developed as part of Summer Projects 2025, Coding Club, IIT Guwahati.
-
+> A blind image restoration system built from scratch using a Vector-Quantized Variational Autoencoder with a U-Net decoder.
 ---
 
 ## Overview
