@@ -1,36 +1,3 @@
-"""
-Clear_Vision — loss.py
-~~~~~~~~~~~~~~~~~~~~~~~~
-Combined loss for the VQ-VAE image restoration task.
-
-Total loss breakdown
-─────────────────────
-  L_total = λ_l1   · L_recon_l1          ← pixel fidelity  (L1)
-           + λ_l2   · L_recon_l2          ← pixel fidelity  (L2 / MSE)
-           + λ_perc · L_perceptual        ← VGG feature similarity
-           + L_vq                         ← commitment loss from quantizer
-
-Notes
-──────
-  • L1  →  sharp edges, good for restoration.  The dominant recon term.
-  • L2  →  smoother gradients early in training.  Small weight by default.
-  • Perceptual  →  compares VGG-16 intermediate features between recon
-    and target.  Catches structural/texture quality L1/L2 miss.
-    Disabled automatically if torchvision is not installed.
-  • VQ loss  →  commitment loss returned by VectorQuantizerEMA.forward().
-    The codebook update is handled by EMA so there is NO separate
-    codebook loss term here.
-  • No KL divergence — VQ-VAE does not use it.
-
-Usage
-──────
-  criterion = ClearVisionLoss(lambda_l1=1.0, lambda_l2=0.1, lambda_perc=0.1)
-
-  recon, vq_loss, perplexity = model(corrupted)
-  loss, breakdown = criterion(recon, clean, vq_loss)
-
-  loss.backward()
-"""
 
 import torch
 import torch.nn as nn
@@ -43,21 +10,6 @@ from typing import Dict, Optional, Tuple
 # ─────────────────────────────────────────────────────────────────────────────
 
 class VGGPerceptualLoss(nn.Module):
-    """
-    Computes L1 distance between VGG-16 intermediate feature maps of
-    the reconstruction and the clean target.
-
-    We use the outputs of relu1_2, relu2_2, relu3_3 — early-to-mid layers
-    that capture low-level texture and mid-level structure respectively.
-    Deeper layers would capture semantics which matter less for restoration.
-
-    The VGG weights are frozen (eval mode, no grad) — they are a fixed
-    feature extractor, not learned.
-
-    ImageNet normalisation is applied internally so the model always
-    receives properly normalised input regardless of what the rest of the
-    pipeline does.
-    """
 
     # relu1_2, relu2_2, relu3_3 indices in VGG-16 features
     _LAYER_IDS = [4, 9, 16]
@@ -124,17 +76,6 @@ class VGGPerceptualLoss(nn.Module):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ClearVisionLoss(nn.Module):
-    """
-    Combined VQ-VAE restoration loss.
-
-    Args
-    ────
-    lambda_l1   : weight for L1 reconstruction loss          (default 1.0)
-    lambda_l2   : weight for L2 / MSE reconstruction loss    (default 0.1)
-    lambda_perc : weight for VGG perceptual loss             (default 0.1)
-                  Set to 0.0 to skip perceptual loss entirely
-                  (e.g. if torchvision isn't available).
-    """
 
     def __init__(
         self,
@@ -165,26 +106,6 @@ class ClearVisionLoss(nn.Module):
         target:   torch.Tensor,
         vq_loss:  Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """
-        Args
-        ────
-        recon   : (B, C, H, W)  model reconstruction in [0, 1]
-        target  : (B, C, H, W)  clean ground-truth image in [0, 1]
-        vq_loss : scalar commitment loss from VectorQuantizerEMA
-                  (pass None for plain U-Net ablation runs)
-
-        Returns
-        ───────
-        total_loss : scalar tensor — call .backward() on this
-        breakdown  : dict of float values for logging:
-                     {
-                       "loss_total"  : float,
-                       "loss_l1"     : float,
-                       "loss_l2"     : float,
-                       "loss_perc"   : float,
-                       "loss_vq"     : float,
-                     }
-        """
 
         # ── Pixel losses ──────────────────────────────────────────────────
         l1_loss = F.l1_loss(recon, target)
