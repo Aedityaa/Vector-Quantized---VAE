@@ -1,19 +1,3 @@
-"""
-Clear_Vision — UNetRestoration.py
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-U-Net restoration backbone (corrupted → clean, 128×128) with:
-  • VQ-VAE quantizer hook at the bottleneck (down4 output)
-  • Skip connections ONLY at the top-2 decoder levels (up3, up4)
-    — x3/x4 skips are intentionally dropped so the VQ bottleneck
-      is forced to encode all coarse/semantic information.
-  • UpNoSkip for the two deep decoder stages (up1, up2)
-  • UpWithSkip (original Up logic) for the two shallow stages (up3, up4)
-
-Wire-up order
-─────────────
-Encoder : inc → down1 → down2 → down3 → down4 → [VQ hook] → z_q
-Decoder : z_q → up1 → up2 → up3(+x2) → up4(+x1) → outc → sigmoid
-"""
 
 import torch
 import torch.nn as nn
@@ -62,15 +46,6 @@ class Down(nn.Module):
 # ─────────────────────────────────────────────
 
 class UpNoSkip(nn.Module):
-    """
-    Decoder step WITHOUT a skip connection.
-    Used for up1 and up2 (deep levels) so that the VQ bottleneck
-    is the sole source of coarse/semantic information.
-
-    ConvTranspose2d doubles spatial size, then DoubleConv refines.
-    in_ch  : channels coming from the previous decoder stage
-    out_ch : desired output channels
-    """
 
     def __init__(self, in_ch: int, out_ch: int):
         super().__init__()
@@ -83,16 +58,6 @@ class UpNoSkip(nn.Module):
 
 
 class UpWithSkip(nn.Module):
-    """
-    Decoder step WITH a skip connection from the encoder.
-    Used for up3 (+x2) and up4 (+x1) — the top-2 high-res levels.
-
-    ConvTranspose2d halves channels and doubles spatial size, then the
-    skip is concatenated (channel-wise) before the DoubleConv.
-
-    in_ch  : channels coming from the previous decoder stage
-    out_ch : desired output channels
-    """
 
     def __init__(self, in_ch: int, out_ch: int):
         super().__init__()
@@ -115,21 +80,6 @@ class UpWithSkip(nn.Module):
 # ─────────────────────────────────────────────
 
 class UNetRestoration(nn.Module):
-    """
-    Clear_Vision encoder-decoder with:
-      • VQ-VAE quantizer hook at the bottleneck
-      • Skip connections only at the top-2 decoder levels
-
-    Args
-    ────
-    in_channels  : input image channels (default 3 — RGB)
-    out_channels : output image channels (default 3 — RGB)
-    base         : base feature width; doubles each Down (default 64)
-    quantizer    : optional VectorQuantizer module.  When provided,
-                   forward() returns (reconstruction, vq_loss, perplexity).
-                   When None, returns reconstruction only — useful for
-                   plain U-Net ablation runs.
-    """
 
     def __init__(
         self,
@@ -167,17 +117,6 @@ class UNetRestoration(nn.Module):
     def forward(
         self, x: torch.Tensor
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
-        """
-        Args
-        ────
-        x : (B, C, H, W) corrupted image tensor, values in [0, 1]
-
-        Returns
-        ───────
-        recon       : (B, out_ch, H, W) restored image in [0, 1]
-        vq_loss     : scalar VQ loss (commitment + codebook) — None if no quantizer
-        perplexity  : codebook perplexity scalar — None if no quantizer
-        """
 
         # ── Encoder forward ──────────────────────
         x1 = self.inc(x)        # (B,  64, 128, 128)  ← skip for up4
